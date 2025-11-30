@@ -6,7 +6,7 @@ use kastlewatch::shared::resources::monitors::http_monitor::v1alpha1::{
     HTTPMonitor, HTTPMonitorSpec, Method,
 };
 use kastlewatch::shared::resources::monitors::tcp_monitor::v1alpha1::{TCPMonitor, TCPMonitorSpec};
-use kastlewatch::shared::settings::{ControllerSettings, Settings};
+use kastlewatch::shared::settings::{ControllerSettings, Settings, WorkerSettings};
 use kube::Client;
 use kube::client::Body;
 use kube::runtime::controller::Action;
@@ -22,6 +22,8 @@ async fn test_tcp_reconcile_success() {
     let settings = Settings {
         controller: ControllerSettings {
             base_url: "http://worker:3000".to_string(),
+        },
+        worker: WorkerSettings {
             host: "0.0.0.0".to_string(),
             port: 3000,
         },
@@ -57,6 +59,8 @@ async fn test_http_reconcile_success() {
     let settings = Settings {
         controller: ControllerSettings {
             base_url: "http://worker:3000".to_string(),
+        },
+        worker: WorkerSettings {
             host: "0.0.0.0".to_string(),
             port: 3000,
         },
@@ -94,6 +98,8 @@ async fn test_http_reconcile_invalid_base64() {
     let settings = Settings {
         controller: ControllerSettings {
             base_url: "http://worker:3000".to_string(),
+        },
+        worker: WorkerSettings {
             host: "0.0.0.0".to_string(),
             port: 3000,
         },

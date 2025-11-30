@@ -99,9 +99,11 @@ pub async fn start_services(client: Client) -> anyhow::Result<String> {
     let controller_client = client.clone();
     let controller_settings = shared::settings::Settings {
         controller: shared::settings::ControllerSettings {
-            base_url: worker_base_url.clone(),
-            host: "127.0.0.1".to_string(),
-            port: worker_port,
+            base_url: worker_base_url.clone()
+        },
+        worker: shared::settings::WorkerSettings {
+            host: "0.0.0.0".to_string(),
+            port: 3000,
         },
     };
 
