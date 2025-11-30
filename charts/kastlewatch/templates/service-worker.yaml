@@ -8,7 +8,7 @@ spec:
   type: ClusterIP
   ports:
     - port: {{ .Values.worker.service.port }}
-      targetPort: {{ .Values.config.controller.port }}
+      targetPort: {{ .Values.config.worker.port }}
       protocol: TCP
       name: http
   selector:
