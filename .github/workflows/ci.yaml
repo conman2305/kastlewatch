@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Pack
+        uses: buildpacks/github-actions/setup-pack@v5.0.0
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,format=long
+            type=ref,event=tag
+
+      - name: Build and push Docker image
+        run: |
+          # Construct tag arguments
+          TAG_ARGS=""
+          while IFS= read -r tag; do
+            if [ -n "$tag" ]; then
+              TAG_ARGS="$TAG_ARGS --tag $tag"
+            fi
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+          PUBLISH_ARG=""
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            PUBLISH_ARG="--publish"
+          fi
+
+          # Using a standard builder. Adjust if a specific builder is required.
+          pack build ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --builder paketobuildpacks/builder-jammy-base \
+            $TAG_ARGS \
+            $PUBLISH_ARG
+
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: llvm-tools-preview
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
+
+      - name: Generate code coverage
+        run: cargo llvm-cov --all-features --workspace --html --output-dir target/llvm-cov
+
+      - name: Upload coverage report
+        id: upload-artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: target/llvm-cov
+
+      - name: Post Commit Comment
+        if: github.event_name == 'push'
+        uses: peter-evans/commit-comment@v3
+        with:
+          body: |
+            Coverage Report available as artifact: ${{ steps.upload-artifact.outputs.artifact-url }}
+
+      - name: Post PR Comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: coverage-report
+          message: |
+            ## Coverage Report
+            Download the full HTML report here: ${{ steps.upload-artifact.outputs.artifact-url }}
