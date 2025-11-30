@@ -22,6 +22,7 @@ chrono = { version = "0.4", features = ["serde"] }
 config = "0.13"
 serde_yaml = "0.9.34"
 base64 = "0.22.1"
+openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 testcontainers = { version = "0.25.0" }

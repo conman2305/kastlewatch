@@ -1,0 +1,22 @@
+# Version control
+.git
+.gitignore
+
+# Build artifacts
+target/
+
+# CI/CD
+.github/
+
+# Helm Charts
+charts/
+
+# Documentation
+docs/
+
+# Scripts
+scripts/
+
+# Docker
+Dockerfile
+.dockerignore
