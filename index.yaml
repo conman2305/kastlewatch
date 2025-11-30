@@ -3,6 +3,16 @@ entries:
   kastlewatch:
   - apiVersion: v2
     appVersion: 0.2.0
+    created: "2025-11-30T23:50:39.531989909Z"
+    description: A Helm chart for Kastlewatch
+    digest: da0885faf5a14c42bb21e5a9f973c668594a1a030257b5c7857945ab9e517042
+    name: kastlewatch
+    type: application
+    urls:
+    - https://github.com/conman2305/kastlewatch/releases/download/kastlewatch-0.2.4/kastlewatch-0.2.4.tgz
+    version: 0.2.4
+  - apiVersion: v2
+    appVersion: 0.2.0
     created: "2025-11-30T23:47:36.118089089Z"
     description: A Helm chart for Kastlewatch
     digest: 7fa8087af65487118a1b38fe94343e2f182d6688a881dcd74eb1344974de14b0
@@ -21,4 +31,4 @@ entries:
     urls:
     - https://github.com/conman2305/kastlewatch/releases/download/kastlewatch-0.2.2/kastlewatch-0.2.2.tgz
     version: 0.2.2
-generated: "2025-11-30T23:47:36.118112784Z"
+generated: "2025-11-30T23:50:39.532013654Z"
