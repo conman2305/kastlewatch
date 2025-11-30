@@ -8,5 +8,7 @@ data:
   config.toml: |
     [controller]
     base_url = "http://{{ include "kastlewatch.fullname" . }}-worker:{{ .Values.worker.service.port }}"
-    host = "{{ .Values.config.controller.host }}"
-    port = {{ .Values.config.controller.port }}
+    
+    [worker]
+    host = "{{ .Values.config.worker.host }}"
+    port = {{ .Values.config.worker.port }}

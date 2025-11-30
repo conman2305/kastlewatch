@@ -72,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Worker => {
             info!("Starting KastleWatch Worker");
             let client = Client::try_default().await?;
-            let addr = format!("{}:{}", settings.controller.host, settings.controller.port);
+            let addr = format!("{}:{}", settings.worker.host, settings.worker.port);
             let listener = tokio::net::TcpListener::bind(&addr).await?;
             if let Err(e) = kastlewatch::worker::server::run(client, listener).await {
                 error!("Worker failed: {:?}", e);

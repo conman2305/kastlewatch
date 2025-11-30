@@ -4,11 +4,16 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, Clone)]
 pub struct Settings {
     pub controller: ControllerSettings,
+    pub worker: WorkerSettings,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct ControllerSettings {
     pub base_url: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct WorkerSettings {
     pub port: u16,
     pub host: String,
 }
