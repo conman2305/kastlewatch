@@ -1,15 +1,20 @@
-use kube::{CustomResource, runtime::controller::Action, ResourceExt};
+use crate::shared::context::AppState;
+use crate::shared::context::Context;
+use crate::shared::resources::common::{
+    self, ControllerResource, MonitorConfigSpec, MonitorState, MonitorStatus,
+};
+use crate::shared::resources::worker;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
+use base64::prelude::*;
+use kube::{CustomResource, ResourceExt, runtime::controller::Action};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::shared::resources::common::{MonitorConfigSpec, MonitorStatus, MonitorState, ControllerResource, self};
-use crate::shared::resources::worker;
-use crate::shared::context::Context;
 use std::sync::Arc;
 use tokio::time::Duration;
-use tracing::{info, error};
-use axum::{extract::{State, Json}, http::StatusCode};
-use crate::shared::context::AppState;
-use base64::prelude::*;
+use tracing::{error, info};
 
 #[derive(Serialize, Deserialize, Clone, Debug, JsonSchema, PartialEq)]
 pub enum Method {
@@ -39,10 +44,11 @@ pub struct HTTPMonitorSpec {
     pub base64_data: Option<String>,
 }
 
-
 impl ControllerResource for HTTPMonitor {
     fn success_policy(&self) -> Action {
-        Action::requeue(Duration::from_secs(self.spec.monitor_config.polling_frequency as u64))
+        Action::requeue(Duration::from_secs(
+            self.spec.monitor_config.polling_frequency as u64,
+        ))
     }
 
     fn error_policy(&self, error: &anyhow::Error, _ctx: Arc<Context>) -> Action {
@@ -53,7 +59,9 @@ impl ControllerResource for HTTPMonitor {
 
     fn validate(&self) -> anyhow::Result<()> {
         if let Some(data) = &self.spec.base64_data {
-            BASE64_STANDARD.decode(data).map_err(|e| anyhow::anyhow!("Invalid base64 data: {}", e))?;
+            BASE64_STANDARD
+                .decode(data)
+                .map_err(|e| anyhow::anyhow!("Invalid base64 data: {}", e))?;
         }
         Ok(())
     }
@@ -63,7 +71,7 @@ impl common::MonitorResource for HTTPMonitor {
     async fn check(&self) -> anyhow::Result<MonitorState> {
         let url = &self.spec.url;
         info!("Checking {}", url);
-        
+
         let timeout = Duration::from_secs(self.spec.monitor_config.timeout as u64);
         let http_client = reqwest::Client::builder()
             .timeout(timeout)
@@ -84,7 +92,7 @@ impl common::MonitorResource for HTTPMonitor {
         }
 
         let result = req_builder.send().await;
-        
+
         let is_healthy = match result {
             Ok(response) => {
                 let status = response.status().as_u16();
@@ -99,7 +107,7 @@ impl common::MonitorResource for HTTPMonitor {
                 false
             }
         };
-        
+
         let new_state = if is_healthy {
             MonitorState::Healthy
         } else {
@@ -111,10 +119,9 @@ impl common::MonitorResource for HTTPMonitor {
 
     async fn handle_http(
         State(state): State<AppState>,
-        Json(monitor): Json<HTTPMonitor>
+        Json(monitor): Json<HTTPMonitor>,
     ) -> StatusCode {
         tokio::spawn(async move {
-
             worker::generic_worker_handler(monitor, state.client).await;
         });
         StatusCode::OK

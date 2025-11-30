@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "kastlewatch.fullname" . }}-worker
+  labels:
+    {{- include "kastlewatch.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.worker.service.port }}
+      targetPort: {{ .Values.config.controller.port }}
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "kastlewatch.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: worker

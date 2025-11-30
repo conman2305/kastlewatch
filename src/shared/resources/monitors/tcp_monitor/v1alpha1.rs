@@ -1,15 +1,20 @@
-use kube::{CustomResource, runtime::controller::Action, ResourceExt};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
-use crate::shared::resources::common::{MonitorConfigSpec, MonitorStatus, MonitorState, ControllerResource, self};
+use crate::shared::context::AppState;
+use crate::shared::context::Context;
+use crate::shared::resources::common::{
+    self, ControllerResource, MonitorConfigSpec, MonitorState, MonitorStatus,
+};
 use crate::shared::resources::monitors::tcp_monitor::check_tcp_connection;
 use crate::shared::resources::worker;
-use crate::shared::context::Context;
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+};
+use kube::{CustomResource, ResourceExt, runtime::controller::Action};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::time::Duration;
-use tracing::{info, error};
-use axum::{extract::{State, Json}, http::StatusCode};
-use crate::shared::context::AppState;
+use tracing::{error, info};
 
 /// Specification for the TCPMonitor resource
 #[derive(CustomResource, Deserialize, Serialize, Clone, Debug, JsonSchema)]
@@ -31,7 +36,9 @@ pub struct TCPMonitorSpec {
 
 impl ControllerResource for TCPMonitor {
     fn success_policy(&self) -> Action {
-        Action::requeue(Duration::from_secs(self.spec.monitor_config.polling_frequency as u64))
+        Action::requeue(Duration::from_secs(
+            self.spec.monitor_config.polling_frequency as u64,
+        ))
     }
 
     fn error_policy(&self, error: &anyhow::Error, _ctx: Arc<Context>) -> Action {
@@ -46,10 +53,10 @@ impl common::MonitorResource for TCPMonitor {
         let host = &self.spec.host;
         let port = self.spec.port;
         info!("Checking {}:{}", host, port);
-        
+
         let timeout = Duration::from_secs(self.spec.monitor_config.timeout as u64);
         let is_open = check_tcp_connection(host, port, timeout).await;
-        
+
         let new_state = if is_open {
             MonitorState::Healthy
         } else {
@@ -59,16 +66,12 @@ impl common::MonitorResource for TCPMonitor {
         Ok(new_state)
     }
 
-    async fn handle_http(
-        State(state): State<AppState>,
-        Json(monitor): Json<Self>
-    ) -> StatusCode {
+    async fn handle_http(State(state): State<AppState>, Json(monitor): Json<Self>) -> StatusCode {
         tokio::spawn(async move {
             worker::generic_worker_handler(monitor, state.client).await;
         });
         StatusCode::OK
     }
-
 
     fn monitor_config(&self) -> &MonitorConfigSpec {
         &self.spec.monitor_config

@@ -1,8 +1,8 @@
-use kube::{
-    api::{Api, PostParams},
-    Client, CustomResourceExt,
-};
 use k8s_openapi::apiextensions_apiserver::pkg::apis::apiextensions::v1::CustomResourceDefinition;
+use kube::{
+    Client, CustomResourceExt,
+    api::{Api, PostParams},
+};
 use tracing::{info, warn};
 
 pub async fn init_crds<T>(client: Client) -> anyhow::Result<()>
@@ -18,7 +18,7 @@ where
     if let Ok(existing) = api.get(name).await {
         info!("CRD {} already exists, merging versions", name);
         let mut new_crd = crd.clone();
-        
+
         // Simple merge strategy: keep existing versions that are not in the new CRD
         // This is a basic implementation. A more robust one would check for version compatibility.
         let existing_spec = existing.spec;

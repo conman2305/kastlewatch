@@ -1,23 +1,24 @@
 use kastlewatch::{controller, shared, worker};
 use kube::{Client, Config};
-use shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor;
 use shared::resources::monitors::http_monitor::v1alpha1::HTTPMonitor;
+use shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor;
 use shared::resources::notifiers::discord_notifier::v1alpha1::DiscordNotifier;
-use testcontainers::{runners::AsyncRunner, ImageExt, ContainerAsync};
+use std::sync::Mutex;
+use testcontainers::core::IntoContainerPort;
+use testcontainers::{ContainerAsync, ImageExt, runners::AsyncRunner};
 use testcontainers_modules::k3s::K3s;
 use tokio::net::TcpListener;
 use tokio::sync::OnceCell;
 use tokio::time::Duration;
-use testcontainers::core::IntoContainerPort;
-use std::sync::Mutex;
 
 // Global static to hold the container and client
-pub static K3S_INSTANCE: OnceCell<(Client, Mutex<Option<ContainerAsync<K3s>>>)> = OnceCell::const_new();
+pub static K3S_INSTANCE: OnceCell<(Client, Mutex<Option<ContainerAsync<K3s>>>)> =
+    OnceCell::const_new();
 
 pub async fn get_k3s_instance() -> &'static Client {
-    let (client, _node) = K3S_INSTANCE.get_or_init(|| async {
-        setup_k3s().await.expect("Failed to setup K3s")
-    }).await;
+    let (client, _node) = K3S_INSTANCE
+        .get_or_init(|| async { setup_k3s().await.expect("Failed to setup K3s") })
+        .await;
     client
 }
 
@@ -39,17 +40,25 @@ async fn setup_k3s() -> anyhow::Result<(Client, Mutex<Option<ContainerAsync<K3s>
         .with_startup_timeout(Duration::from_secs(300))
         .start()
         .await?;
-    
+
     // 2. Get Kubeconfig
     use tokio::io::AsyncReadExt;
-    let mut exec_res = node.exec(testcontainers::core::ExecCommand::new(vec!["cat", "/etc/rancher/k3s/k3s.yaml"])).await?;
+    let mut exec_res = node
+        .exec(testcontainers::core::ExecCommand::new(vec![
+            "cat",
+            "/etc/rancher/k3s/k3s.yaml",
+        ]))
+        .await?;
     let mut stdout_reader = exec_res.stdout();
     let mut kubeconfig_bytes = Vec::new();
     stdout_reader.read_to_end(&mut kubeconfig_bytes).await?;
     let kubeconfig_str = String::from_utf8(kubeconfig_bytes)?;
-    
+
     // Replace the internal IP with localhost and the mapped port
-    let kubeconfig_str = kubeconfig_str.replace("server: https://127.0.0.1:6443", &format!("server: https://127.0.0.1:{}", host_port));
+    let kubeconfig_str = kubeconfig_str.replace(
+        "server: https://127.0.0.1:6443",
+        &format!("server: https://127.0.0.1:{}", host_port),
+    );
 
     // Create a temporary file for the kubeconfig
     let temp_dir = tempfile::tempdir()?;
@@ -60,8 +69,9 @@ async fn setup_k3s() -> anyhow::Result<(Client, Mutex<Option<ContainerAsync<K3s>
     let config = Config::from_custom_kubeconfig(
         kube::config::Kubeconfig::read_from(kubeconfig_path.clone())?,
         &kube::config::KubeConfigOptions::default(),
-    ).await?;
-    
+    )
+    .await?;
+
     let client = Client::try_from(config)?;
 
     // Init CRDs
@@ -77,7 +87,7 @@ pub async fn start_services(client: Client) -> anyhow::Result<String> {
     let listener = TcpListener::bind("127.0.0.1:0").await?;
     let worker_port = listener.local_addr()?.port();
     let worker_base_url = format!("http://127.0.0.1:{}", worker_port);
-    
+
     let worker_client = client.clone();
     tokio::spawn(async move {
         if let Err(e) = worker::server::run(worker_client, listener).await {
@@ -94,7 +104,7 @@ pub async fn start_services(client: Client) -> anyhow::Result<String> {
             port: worker_port,
         },
     };
-    
+
     tokio::spawn(async move {
         if let Err(e) = controller::controller::run(controller_client, controller_settings).await {
             eprintln!("Controller failed: {:?}", e);
@@ -108,10 +118,10 @@ pub fn cleanup() {
     // Check if K3S_INSTANCE has been initialized
     if let Some((_client, node_mutex)) = K3S_INSTANCE.get() {
         println!("Cleaning up K3s container...");
-        
+
         // Take the container out of the mutex
         let node_opt = node_mutex.lock().unwrap().take();
-        
+
         if let Some(node) = node_opt {
             // Create a new runtime to execute the async stop command
             let rt = tokio::runtime::Runtime::new().unwrap();

@@ -1,13 +1,13 @@
+use crate::shared::context::Context;
+use crate::shared::resources::common::{self, ControllerResource, MonitorResource};
+use crate::shared::settings::Settings;
+use futures::StreamExt;
 use kube::{
-    runtime::{controller::Action, Controller},
     Api, Client, ResourceExt,
+    runtime::{Controller, controller::Action},
 };
 use std::sync::Arc;
-use tracing::{info, error};
-use futures::StreamExt;
-use crate::shared::context::Context;
-use crate::shared::resources::common::{self, MonitorResource, ControllerResource};
-use crate::shared::settings::Settings;
+use tracing::{error, info};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -25,12 +25,14 @@ where
     let client = reqwest::Client::new();
     let worker_url = common::build_worker_url::<T>(&ctx.settings.controller.base_url);
 
-    info!("Dispatching {} {} to worker at {}", T::kind(&()), obj.name_any(), worker_url);
+    info!(
+        "Dispatching {} {} to worker at {}",
+        T::kind(&()),
+        obj.name_any(),
+        worker_url
+    );
 
-    let res = client.post(&worker_url)
-        .json(&*obj)
-        .send()
-        .await;
+    let res = client.post(&worker_url).json(&*obj).send().await;
 
     match res {
         Ok(response) => {
@@ -57,7 +59,10 @@ where
     }
 }
 
-pub fn run_monitor_controller<T>(client: Client, settings: Settings) -> impl futures::Future<Output = ()>
+pub fn run_monitor_controller<T>(
+    client: Client,
+    settings: Settings,
+) -> impl futures::Future<Output = ()>
 where
     T: MonitorResource + serde::Serialize + std::fmt::Debug + serde::de::DeserializeOwned,
 {
@@ -83,14 +88,15 @@ where
 {
     // Validate the resource
     obj.validate().map_err(Error::Anyhow)?;
-    
+
     // Notifiers are passive, so we just return the success policy
     Ok(obj.success_policy())
 }
 
-
-
-pub fn run_notifier_controller<T>(client: Client, settings: Settings) -> impl futures::Future<Output = ()>
+pub fn run_notifier_controller<T>(
+    client: Client,
+    settings: Settings,
+) -> impl futures::Future<Output = ()>
 where
     T: ControllerResource + serde::Serialize + std::fmt::Debug + serde::de::DeserializeOwned,
 {

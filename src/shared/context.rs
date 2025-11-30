@@ -1,5 +1,5 @@
-use kube::Client;
 use crate::shared::settings::Settings;
+use kube::Client;
 
 #[derive(Clone)]
 pub struct Context {

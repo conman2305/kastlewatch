@@ -1,12 +1,11 @@
-
-use kube::{
-    api::{Api, PostParams},
-};
-use kastlewatch::shared::resources::monitors::http_monitor::v1alpha1::{HTTPMonitor, HTTPMonitorSpec, Method};
-use kastlewatch::shared::resources::common::{MonitorConfigSpec, MonitorState};
-use std::env;
-use tokio::time::{sleep, Duration};
 use ctor::dtor;
+use kastlewatch::shared::resources::common::{MonitorConfigSpec, MonitorState};
+use kastlewatch::shared::resources::monitors::http_monitor::v1alpha1::{
+    HTTPMonitor, HTTPMonitorSpec, Method,
+};
+use kube::api::{Api, PostParams};
+use std::env;
+use tokio::time::{Duration, sleep};
 
 mod common;
 
@@ -33,18 +32,21 @@ async fn test_http_monitor_flow() -> anyhow::Result<()> {
     let monitors: Api<HTTPMonitor> = Api::namespaced(client.clone(), "default");
 
     // Monitor the worker's own healthz endpoint
-    let monitor = HTTPMonitor::new("http-test-monitor", HTTPMonitorSpec {
-        url: format!("http://{}:{}/healthz", host, port),
-        monitor_config: MonitorConfigSpec {
-            polling_frequency: 5,
-            timeout: 5,
-            retries: 3,
-            notifiers_match_labels: None,
+    let monitor = HTTPMonitor::new(
+        "http-test-monitor",
+        HTTPMonitorSpec {
+            url: format!("http://{}:{}/healthz", host, port),
+            monitor_config: MonitorConfigSpec {
+                polling_frequency: 5,
+                timeout: 5,
+                retries: 3,
+                notifiers_match_labels: None,
+            },
+            method: Method::GET,
+            status_code: None,
+            base64_data: None,
         },
-        method: Method::GET,
-        status_code: None,
-        base64_data: None,
-    });
+    );
 
     monitors.create(&PostParams::default(), &monitor).await?;
 
@@ -54,7 +56,8 @@ async fn test_http_monitor_flow() -> anyhow::Result<()> {
 
     // Wait for status update
     let mut success = false;
-    for _ in 0..20 { // Wait up to 20 seconds
+    for _ in 0..20 {
+        // Wait up to 20 seconds
         let m = monitors.get("http-test-monitor").await?;
         if let Some(status) = m.status {
             println!("Got status: {:?}", status);
@@ -66,7 +69,10 @@ async fn test_http_monitor_flow() -> anyhow::Result<()> {
         sleep(Duration::from_secs(1)).await;
     }
 
-    assert!(success, "Timed out waiting for monitor status to become Healthy");
+    assert!(
+        success,
+        "Timed out waiting for monitor status to become Healthy"
+    );
     Ok(())
 }
 

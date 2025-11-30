@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kastlewatch.fullname" . }}-config
+  labels:
+    {{- include "kastlewatch.labels" . | nindent 4 }}
+data:
+  config.toml: |
+    [controller]
+    base_url = "http://{{ include "kastlewatch.fullname" . }}-worker:{{ .Values.worker.service.port }}"
+    host = "{{ .Values.config.controller.host }}"
+    port = {{ .Values.config.controller.port }}

@@ -1,8 +1,8 @@
 use clap::{Parser, Subcommand};
-use kube::Client;
-use tracing::{info, error};
-use tracing_subscriber::FmtSubscriber;
 use kastlewatch::{controller, shared};
+use kube::Client;
+use tracing::{error, info};
+use tracing_subscriber::FmtSubscriber;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -27,8 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let subscriber = FmtSubscriber::builder()
         .with_max_level(tracing::Level::INFO)
         .finish();
-    tracing::subscriber::set_global_default(subscriber)
-        .expect("setting default subscriber failed");
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
     let cli = Cli::parse();
     let settings = shared::settings::Settings::new()?;
@@ -37,17 +36,29 @@ async fn main() -> anyhow::Result<()> {
         Commands::Controller => {
             info!("Starting KastleWatch Controller");
             let client = Client::try_default().await?;
-            
+
             // Initialize CRDs
-            if let Err(e) = controller::crd_manager::init_crds::<shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor>(client.clone()).await {
+            if let Err(e) = controller::crd_manager::init_crds::<
+                shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor,
+            >(client.clone())
+            .await
+            {
                 error!("Failed to initialize TCPMonitor CRD: {:?}", e);
                 return Err(e);
             }
-            if let Err(e) = controller::crd_manager::init_crds::<shared::resources::monitors::http_monitor::v1alpha1::HTTPMonitor>(client.clone()).await {
+            if let Err(e) = controller::crd_manager::init_crds::<
+                shared::resources::monitors::http_monitor::v1alpha1::HTTPMonitor,
+            >(client.clone())
+            .await
+            {
                 error!("Failed to initialize HTTPMonitor CRD: {:?}", e);
                 return Err(e);
             }
-            if let Err(e) = controller::crd_manager::init_crds::<shared::resources::notifiers::discord_notifier::v1alpha1::DiscordNotifier>(client.clone()).await {
+            if let Err(e) = controller::crd_manager::init_crds::<
+                shared::resources::notifiers::discord_notifier::v1alpha1::DiscordNotifier,
+            >(client.clone())
+            .await
+            {
                 error!("Failed to initialize DiscordNotifier CRD: {:?}", e);
                 return Err(e);
             }
@@ -70,9 +81,25 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Crdgen => {
             use kube::CustomResourceExt;
-            println!("{}", serde_yaml::to_string(&shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor::crd())?);
-            println!("---\n{}", serde_yaml::to_string(&shared::resources::monitors::http_monitor::v1alpha1::HTTPMonitor::crd())?);
-            println!("---\n{}", serde_yaml::to_string(&shared::resources::notifiers::discord_notifier::v1alpha1::DiscordNotifier::crd())?);
+            println!(
+                "{}",
+                serde_yaml::to_string(
+                    &shared::resources::monitors::tcp_monitor::v1alpha1::TCPMonitor::crd()
+                )?
+            );
+            println!(
+                "---\n{}",
+                serde_yaml::to_string(
+                    &shared::resources::monitors::http_monitor::v1alpha1::HTTPMonitor::crd()
+                )?
+            );
+            println!(
+                "---\n{}",
+                serde_yaml::to_string(
+                    &shared::resources::notifiers::discord_notifier::v1alpha1::DiscordNotifier::crd(
+                    )
+                )?
+            );
         }
     }
 

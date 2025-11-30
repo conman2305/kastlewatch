@@ -1,0 +1,24 @@
+image:
+  repository: ghcr.io
+  name: conman2305/kastlewatch
+  tag: latest
+  pullPolicy: Always
+
+controller:
+  replicaCount: 1
+  resources: {}
+
+worker:
+  replicaCount: 1
+  resources: {}
+  service:
+    port: 3000
+
+serviceAccount:
+  create: true
+  name: ""
+
+config:
+  controller:
+    host: "0.0.0.0"
+    port: 3000
