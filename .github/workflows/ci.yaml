@@ -60,6 +60,7 @@ jobs:
           # Using a standard builder. Adjust if a specific builder is required.
           pack build ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --builder paketobuildpacks/builder-jammy-base \
+            --buildpack paketocommunity/rust \
             $TAG_ARGS \
             $PUBLISH_ARG
 
