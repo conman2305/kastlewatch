@@ -8,6 +8,7 @@ use kube::{
 };
 use std::sync::Arc;
 use tracing::{error, info};
+use chrono::Utc;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -21,6 +22,31 @@ where
 {
     // Validate the resource
     obj.validate().map_err(Error::Anyhow)?;
+
+    // Check if we need to reconcile based on timing
+    // This prevents tight loops when the worker updates the status
+    if let Some(status) = obj.status() {
+        if let Some(last_checked_str) = &status.last_checked {
+            if let Ok(last_checked) = chrono::DateTime::parse_from_rfc3339(last_checked_str) {
+                let last_checked_utc = last_checked.with_timezone(&Utc);
+                let now = Utc::now();
+                let elapsed = now.signed_duration_since(last_checked_utc).num_seconds();
+                let freq = obj.monitor_config().polling_frequency as i64;
+
+                // If we checked recently (less than polling frequency), skip this run
+                if elapsed >= 0 && elapsed < freq {
+                    let requeue_after = (freq - elapsed) as u64;
+                    info!(
+                        "Skipping reconciliation for {} (last checked {}s ago), requeueing in {}s",
+                        obj.name_any(),
+                        elapsed,
+                        requeue_after
+                    );
+                    return Ok(Action::requeue(std::time::Duration::from_secs(requeue_after)));
+                }
+            }
+        }
+    }
 
     let client = reqwest::Client::new();
     let worker_url = common::build_worker_url::<T>(&ctx.settings.controller.base_url);
